@@ -1,0 +1,99 @@
+{
+  "_meta": {
+    "project": "CSNO-ESP — research on the Android CS:GO-style port CSNO (com.ledi.csno, by 乐迪)",
+    "generated": "2026-09-30",
+    "source": "static analysis of libkm_client_panorama_client.so / libkm_engine_client.so (NDK r27, unstripped, aarch64)",
+    "usage": "netvars are struct offsets (arch-independent: valid on Houdini-x86 and native arm64). rva_seeds are THIS build only — resolve module bases at runtime and verify seeds, or fall back to signatures.",
+    "warning": "Offsets verified statically from RecvTable constructors. Phase 2 must re-verify dynamically before ESP use."
+  },
+
+  "modules": {
+    "client": "libkm_client_panorama_client.so",
+    "engine": "libkm_engine_client.so"
+  },
+
+  "netvars": {
+    "m_iTeamNum":          { "offset": 268,  "hex": "0x12C", "table": "DT_BaseEntity", "type": "int" },
+    "m_bSpotted":          { "offset": 2381, "hex": "0xECD", "table": "DT_BaseEntity", "type": "bool" },
+    "m_bSpottedByMask":    { "offset": 3856, "hex": "0xF10", "table": "DT_BaseEntity", "type": "int[2]" },
+    "m_vecOrigin":         { "offset": 368,  "hex": "0x170", "table": "DT_BaseEntity/DT_CSLocal+NonLocal", "type": "vec3" },
+    "m_vecViewOffset":     { "offset": 320,  "hex": "0x140", "table": "DT_LocalPlayerExclusive", "type": "vec3" },
+    "m_vecVelocity":       { "offset": 332,  "hex": "0x14C", "table": "DT_LocalPlayerExclusive", "type": "vec3" },
+    "m_iHealth":           { "offset": 312,  "hex": "0x138", "table": "DT_BasePlayer", "type": "int" },
+    "m_fFlags":            { "offset": 316,  "hex": "0x13C", "table": "DT_BasePlayer", "type": "int" },
+    "m_lifeState":         { "offset": 663,  "hex": "0x297", "table": "DT_BasePlayer", "type": "int" },
+    "m_iFOV":              { "offset": 14760, "hex": "0x39A8", "table": "DT_BasePlayer", "type": "int" },
+    "m_hActiveWeapon":     { "offset": 13880, "hex": "0x3638", "table": "DT_BaseCombatCharacter", "type": "ehandle" },
+    "m_aimPunchAngle":     { "offset": 14196, "hex": "0x3774", "table": "DT_Local", "type": "vec3" },
+    "m_viewPunchAngle":    { "offset": 14184, "hex": "0x3768", "table": "DT_Local", "type": "vec3" },
+    "m_hViewModel":        { "offset": 15060, "hex": "0x3AD4", "table": "DT_BasePlayer", "type": "ehandle[1]" },
+    "m_nTickBase":         { "offset": 15440, "hex": "0x3C50", "table": "DT_LocalPlayerExclusive", "type": "int" },
+    "m_iShotsFired":       { "offset": 44160, "hex": "0xAC80", "table": "DT_CSLocalPlayerExclusive", "type": "int" },
+    "m_flFlashMaxAlpha":   { "offset": 44268, "hex": "0xACEC", "table": "DT_CSPlayer", "type": "float" },
+    "m_flFlashDuration":   { "offset": 44272, "hex": "0xACF0", "table": "DT_CSPlayer", "type": "float" },
+    "m_nSurvivalTeam":     { "offset": 44208, "hex": "0xACB0", "table": "DT_CSPlayer", "type": "int" },
+    "m_iAccount":          { "offset": 48184, "hex": "0xBC38", "table": "DT_CSPlayer", "type": "int" },
+    "m_iClass":            { "offset": 48200, "hex": "0xBC48", "table": "DT_CSPlayer", "type": "int" },
+    "m_bHasHelmet":        { "offset": 48192, "hex": "0xBC40", "table": "DT_CSPlayer", "type": "bool" },
+    "m_ArmorValue":        { "offset": 48204, "hex": "0xBC4C", "table": "DT_CSPlayer", "type": "int" },
+    "m_angEyeAngles":      { "offset": 48208, "hex": "0xBC50", "table": "DT_CSPlayer", "type": "vec3" },
+    "m_bHasDefuser":       { "offset": 48220, "hex": "0xBC5C", "table": "DT_CSPlayer", "type": "bool" },
+    "m_bIsScoped":         { "offset": 16886, "hex": "0x41F6", "table": "DT_CSPlayer", "type": "bool" },
+    "m_bIsWalking":        { "offset": 16887, "hex": "0x41F7", "table": "DT_CSPlayer", "type": "bool" },
+    "m_bGunGameImmunity":  { "offset": 16916, "hex": "0x4214", "table": "DT_CSPlayer", "type": "bool" }
+  },
+
+  "rva_seeds_this_build": {
+    "_comment": "Validation seeds for THIS km_ build only — never hardcode; resolve via runtime module base and confirm, or locate by signature.",
+    "client": {
+      "s_pLocalPlayer":     { "rva": "0x1617F40", "kind": "C_BasePlayer*[MAX_SPLITSCREEN]", "formula": "localPlayer = *(base + rva + 8*slot); slot: -1 (GetLocalPlayer(-1)) maps to index 0" },
+      "s_EntityList":       { "rva": "0x16432A0", "kind": "CClientEntityList (0x600d8 bytes)", "formula": "entity = *(entityList + 0x28 + 0x20*index) — DIRECT pointer, no wrapper (empirically confirmed in-match 2026-09-30); entry[0]=local player" },
+      "engine_iface":       { "rva": "0x1639C08", "kind": "IEngineClient* engine", "formula": "matrix = vcall(engine->vtbl+0x128) -> VMatrix*" },
+      "fn_ScreenTransform": { "rva": "0xBC0768", "kind": "bool ScreenTransform(Vector const& in, Vector& out) — returns visibility; out in [-1,1] clip space" },
+      "fn_GetClientEntity": { "rva": "0xA889D8", "kind": "CClientEntityList::GetClientEntity(int) — call with this=base+0x16432A0" },
+      "fn_GetLocalPlayerIndex": { "rva": "0xA83EC8", "kind": "int GetLocalPlayerIndex()" },
+      "DT_CSPlayer_RecvTable": { "rva": "0x1F6B160", "kind": "RecvTable; props array at 0x1F6B228, 110 props, RecvProp size 0x60" }
+    },
+    "engine": {
+      "g_EngineRenderer":   { "rva": "0xBA2220", "kind": "CRender* g_EngineRenderer", "formula": "viewMatrix (VMatrix, 16 floats) = *(CRender + 0xA4) for primary view; per-view stride 0x220" },
+      "fn_WorldToScreenMatrix": { "rva": "0x66D054", "kind": "CEngineClient::WorldToScreenMatrix() -> VMatrix*" }
+    }
+  },
+
+  "signatures": {
+    "_comment": "Wildcarded (??) byte patterns; ADRP/ADD immediates wildcarded so patterns survive rebuilds. Resolve global by decoding ADRP+ADD at the match.",
+    "client": {
+      "GetLocalPlayer_accessor": {
+        "pattern": "08 7C 40 93 1F 04 00 31 89 60 ?? ?? 29 ?? ?? 91 E8 03 88 9A 20 79 68 F8 C0 03 5F D6",
+        "anchor_rva": "0xA07054",
+        "extract": "ADRP x9 at +8, ADD x9,#imm at +12 -> s_pLocalPlayer = page+imm; then ldr x0,[x9, x8, lsl #3] confirms array stride 8"
+      },
+      "GetClientEntity": {
+        "pattern": "01 01 F8 37 E8 03 01 2A 08 14 08 8B 00 05 40 F9 80 00 00 B4 08 00 40 F9 01 1D 40 F9 20 00 1F D6",
+        "anchor_rva": "0xA889D8",
+        "extract": "formula only: entry = this + 0x20*index; ptr at +8; entity = vcall(vtbl+0x38)"
+      },
+      "ScreenTransform_client": {
+        "pattern": "08 7D 47 F9 08 01 40 F9",
+        "anchor_rva_hint": "inside fn at 0xBC0768: adrp x8,#..; ldr x8,[x8,#0xef8]; ldr x8,[x8]; ldr x9,[x8,#0x128]",
+        "extract": "GOT slot at page+0xEF8 holds ptr to client 'engine' global (0x1639C08); vtbl+0x128 = WorldToScreenMatrix"
+      }
+    },
+    "engine": {
+      "WorldToScreenMatrix_engine": {
+        "pattern": "A8 29 ?? ?? 08 ?? ?? 91 00 01 40 F9 08 00 40 F9 01 39 40 F9 20 00 1F D6",
+        "anchor_rva": "0x66D054",
+        "extract": "ADRP x8 at +0, ADD x8,#0x220 at +4 -> g_EngineRenderer = page+0x220"
+      }
+    }
+  },
+
+  "entity_list": {
+    "formula": "entity = *(u64*)(clientBase + 0x16432A0 + 0x28 + 0x20*index) — DIRECT C_BaseEntity*, empirically confirmed in-match 2026-09-30",
+    "entry_layout": "+0x00 entity*, +0x08 serial (e.g. 0x2fa), +0x10/+0x18 intrusive list links",
+    "player_indices": "0 = local player, 1..N players (bot match: 10 entries at 0..9); unused slots are null",
+    "dormancy": "m_bDormant is NOT a netvar in this build, and m_nTickBase is useless for remote entities (DT_LocalPlayerExclusive networks it only for the local player — verified in-match: local ticks +65/s, bots STATIC by design). Use m_bSpotted (0xECD, networked) or origin-staleness tracking.",
+    "player_filter": "hp > 0 && m_iTeamNum != 0 — entity indices 0..N are players; indices 64+ in the same list are world entities (weapons/props) with team=0",
+    "performance_lesson": "GB-scale Memory.scanSync passes freeze the game under Houdini (3.1GB scan = 48s, game unresponsive). Production reads: ~130 pointers from the known array — milliseconds."
+  }
+}

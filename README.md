@@ -1,0 +1,65 @@
+# CSNO-ESP
+
+基于 Frida 的安卓《CSNO》内存研究与 ESP（透视框）演示工具。
+
+## 项目简介
+
+《CSNO》是一款由 **乐迪** 移植到安卓平台的 CS:GO 风格游戏（包名 `com.ledi.csno`，Source 引擎构建）。
+本项目是对该游戏的**纯只读内存逆向研究**：通过解析 Source 引擎的 RecvTable 网络变量表、客户端实体列表（Entity List）与视图矩阵，在 PC 端叠加显示透视框（ESP）——包括玩家方框、血量条、阵营颜色等。**全程只读取内存，不修改、不写入任何游戏数据。**
+
+原作者：**乐迪**
+游戏介绍视频：<https://www.bilibili.com/video/BV1imat6dEM1>
+
+## ⚠️ 免责声明
+
+本项目**仅供娱乐与技术学习研究用途**，请在离线人机对局等不影响他人的环境中使用。
+
+- 禁止用于任何商业用途
+- 禁止在任何涉及真实玩家的对局中使用，或以任何方式影响他人游戏体验
+- 使用本工具产生的一切后果由使用者自行承担
+- 本项目与游戏原作者乐迪及 Valve 无任何关联
+
+## 工作原理
+
+1. **静态分析**：从 `libkm_client_panorama_client.so` / `libkm_engine_client.so`（未加壳、未剥离符号的 NDK 构建）中解析出 RecvTable 结构和网络变量偏移（`m_iHealth`、`m_iTeamNum`、`m_vecOrigin` 等）
+2. **运行时定位**：通过 `/proc` maps 解析模块基址（支持 Houdini ARM→x86 转译环境与原生 arm64），并用 ADRP+ADD 特征码扫描校验全局指针，不硬编码任何地址
+3. **数据读取**：按已验证的实体列表公式 `entity(i) = *(client + 0x16432A0 + 0x28 + 0x20*i)` 枚举玩家（每帧约 130 次指针读取，毫秒级开销）
+4. **投影绘制**：读取引擎视图矩阵（CRender+0xA4），World-To-Screen 投影后在透明置顶窗口上绘制方框
+
+## 文件说明
+
+| 文件 | 说明 |
+|------|------|
+| `config.js` | 运行时配置：模块名、结构偏移、RVA 种子、特征码 |
+| `offsets.json` | 静态分析提取的完整偏移配置（含验证来源说明） |
+| `frida_run.py` | 非交互式 Frida 脚本驱动器 |
+| `esp_loop.js` | 常驻 RPC 帧数据提供端（纯内存读取） |
+| `esp_overlay.py` | PC 端透明置顶叠加窗口（Windows，~30 Hz 刷新） |
+
+## 使用方法
+
+环境要求：Windows + 已 root 的安卓模拟器（如 LDPlayer）+ Python 3 + Frida
+
+```bash
+# 1. 安装依赖
+pip install frida frida-tools
+
+# 2. 启动模拟器中的 frida-server（需 root，架构需匹配模拟器）
+adb push frida-server /data/local/tmp/frida-server
+adb shell "su -c 'chmod 755 /data/local/tmp/frida-server'"
+adb shell "su -c 'setsid /data/local/tmp/frida-server > /dev/null 2>&1 &'"
+
+# 3. 启动游戏并进入人机对局
+
+# 4. 启动叠加窗口（自动检测游戏进程；adb 不在 PATH 时设置 ADB 环境变量）
+python esp_overlay.py
+```
+
+黄色框 = 本地玩家，绿色框 = 队友，红色框 = 敌人，左侧竖条 = 血量。
+
+> 注：`offsets.json` 中的 RVA 种子仅对当前游戏构建版本有效，游戏更新后需重新提取；网络变量偏移（netvars）与特征码具有更好的跨版本稳定性。偏移提取方法见 `esp_loop.js` 与 `config.js` 中的注释。
+
+## 支持环境
+
+- LDPlayer 等安卓模拟器（游戏进程为 x86_64 + Houdini ARM 转译，工具已适配）
+- 原生 arm64 安卓设备（实体公式与偏移通用；`frida-server` 需换成 arm64 版本）
