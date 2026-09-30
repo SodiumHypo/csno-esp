@@ -56,6 +56,7 @@ adb shell "su -c 'setsid /data/local/tmp/frida-server > /dev/null 2>&1 &'"
 #    自动监测：模拟器在线状态 / frida-server 存活（掉线自动重启）/
 #    游戏进程（启动自动附加、退出自动分离、重启自动重连）/ 模拟器窗口移动
 python esp_auto.py
+#    退出：点击右上角红色 "✕ ESP" 悬浮按钮，或在控制台按 Enter
 
 #    或使用手动版本（单次附加，不自动恢复）
 python esp_overlay.py
@@ -63,7 +64,7 @@ python esp_overlay.py
 
 > adb 不在 PATH 时，先设置 `ADB` 环境变量指向模拟器自带的 adb.exe。
 
-黄色框 = 本地玩家，绿色框 = 队友，红色框 = 敌人，左侧竖条 = 血量。
+绿色框 = 队友，红色框 = 敌人，左侧竖条 = 血量；左上角灰字为状态与追踪人数提示。
 
 > 注：`offsets.json` 中的 RVA 种子仅对当前游戏构建版本有效，游戏更新后需重新提取；网络变量偏移（netvars）与特征码具有更好的跨版本稳定性。偏移提取方法见 `esp_loop.js` 与 `config.js` 中的注释。
 

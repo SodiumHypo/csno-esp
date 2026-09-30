@@ -1,7 +1,7 @@
 """One-shot Frida script driver (no REPL): bundle config.js, run, capture, detach.
 
 Usage:
-    D:/Software/Python/python frida_run.py <script.js> <pid> [wait_seconds]
+    python frida_run.py <script.js> <pid> [wait_seconds]
 
 CommonJS require('./config.js') is satisfied by an inline shim, so the same
 scripts run identically here and under `frida -U -p <pid> -l <script.js>`.

@@ -4,13 +4,17 @@ Every 2 s it checks, in order:
   1. emulator (adb device state)        → wait if offline
   2. frida-server on the device         → (re)started if dead
   3. game process (com.ledi.csno pid)   → attach on new pid, detach on exit
-  4. emulator window rect               → overlay repositioned if it moved
+  4. emulator window rect               → overlay follows it (last good kept
+     when the window is minimized or no valid player window is found)
+  5. z-order                            → HWND_TOPMOST re-asserted every cycle
+     (the emulator's fullscreen refresh otherwise buries the overlay)
 
 While attached, the esp_loop RPC is polled at ~30 Hz and drawn on the same
 transparent click-through overlay as esp_overlay.py.
 
 Usage:
-    python esp_auto.py            # runs until Enter in console (or ESP_RUNTIME_S)
+    python esp_auto.py            # quit via the "✕ ESP" pill (top-right of the
+                                  # screen), Enter in the console, or ESP_RUNTIME_S
 
 Environment:
     ADB             adb executable if not on PATH
@@ -26,7 +30,7 @@ import tkinter as tk
 import frida
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from esp_overlay import find_emulator_client_rect, make_click_through, draw_frame
+from esp_overlay import find_emulator_client_rect, make_click_through, keep_on_top, draw_frame
 from frida_run import load_bundled_source
 
 ADB = os.environ.get("ADB", "adb")
@@ -55,12 +59,13 @@ class EspAuto:
         self.w, self.h, self.rect = self.place_over_emulator()
         self.root.update()
         make_click_through(self.root)
+        self._make_control_panel()
 
         self.session = None
         self.script = None
         self.rpc = None
+        self.frame = None
         self.pid = None
-        self.rpc_fails = 0
         self.status = "starting"
         self.stop = False
         self.started = time.time()
@@ -69,6 +74,31 @@ class EspAuto:
         threading.Thread(target=self._quit_on_enter, daemon=True).start()
         self.root.after(200, self.supervise)
         self.root.after(100, self.tick)
+
+    # ---------- control panel ----------
+
+    def _make_control_panel(self):
+        """Tiny always-on-top "✕ ESP" pill, pinned to the top-right of the
+        screen. The overlay itself is click-through by design and a background
+        launch has no console, so this is the visible way to stop the service.
+        It is a separate window WITHOUT WS_EX_TRANSPARENT, so it takes clicks
+        while everything under the overlay stays interactive."""
+        ctrl = tk.Toplevel(self.root)
+        ctrl.overrideredirect(True)
+        ctrl.attributes("-topmost", True)
+        ctrl.config(bg="#1c1c1c")
+        btn = tk.Label(ctrl, text="✕ ESP", fg="white", bg="#8b0000",
+                       font=("Segoe UI", 10, "bold"), padx=10, pady=4, cursor="hand2")
+        btn.pack()
+        btn.bind("<Button-1>", lambda _e: self.shutdown())
+        self.ctrl = ctrl
+        ctrl.update_idletasks()
+        x = self.root.winfo_screenwidth() - ctrl.winfo_reqwidth() - 10
+        ctrl.geometry(f"+{max(0, x)}+10")
+
+    def shutdown(self):
+        log("stop requested via control panel")
+        self.stop = True
 
     # ---------- infrastructure checks ----------
 
@@ -117,47 +147,76 @@ class EspAuto:
     def attach(self, pid):
         self.detach()
         try:
-            device = frida.get_usb_device()
+            device = frida.get_usb_device(timeout=10)
             session = device.attach(pid)
             script = session.create_script(load_bundled_source(SCRIPT_PATH))
             script.on("message", self.on_message)
             script.load()
             session.on("detached", self.on_detached)
-            self.session, self.script, self.rpc = session, script, script.exports_sync
+            self.session, self.script = session, script
+            self.rpc = script.exports_sync
             self.pid = pid
-            self.rpc_fails = 0
             log(f"attached to {PKG} pid {pid}")
+            # Polling runs in its own thread: a hung RPC call (dying agent)
+            # must never block the tkinter mainloop — that would freeze the
+            # 2 s supervision cycle too, and the overlay could never recover.
+            threading.Thread(target=self._poll_worker, args=(self.rpc,), daemon=True).start()
         except Exception as e:
             self.status = f"attach failed: {e}"
             log(f"attach failed: {e!r}")
             self.detach()
 
-    def detach(self):
-        for attr in ("rpc", "script", "session"):
-            setattr(self, attr, None)
-        self.pid = None
-        if self.session:
+    def _poll_worker(self, rpc):
+        fails = 0
+        while not self.stop and self.rpc is rpc:
             try:
-                self.session.detach()
+                frame = rpc.get_esp_frame(self.w, self.h)
+                fails = 0
+            except Exception as e:
+                fails += 1
+                frame = {"ok": False, "error": f"rpc error ({e})"}
+                if fails >= RPC_FAIL_LIMIT:
+                    log(f"rpc failed {fails}x — forcing re-attach")
+                    self.detach()
+                    return
+            if self.rpc is rpc:
+                self.frame = frame
+            time.sleep(POLL_MS / 1000.0)
+
+    def detach(self):
+        session = self.session
+        self.pid = None
+        self.rpc = None      # signals poll workers to exit
+        self.script = None
+        self.frame = None
+        self.session = None
+        if session:
+            try:
+                session.detach()
             except Exception:
                 pass
-            self.session = None
 
     # ---------- overlay geometry ----------
 
     def place_over_emulator(self):
-        x, y, w, h = find_emulator_client_rect()
+        rect = find_emulator_client_rect() or (
+            0, 0, self.root.winfo_screenwidth(), self.root.winfo_screenheight())
+        x, y, w, h = rect
         self.root.geometry(f"{w}x{h}+{x}+{y}")
-        return w, h, (x, y, w, h)
+        return w, h, rect
 
     def refresh_geometry(self):
+        # None = no usable player window right now (minimized, Explorer-name
+        # false match, transient fullscreen transition) — KEEP last good
+        # geometry instead of latching onto garbage rects off-screen.
         rect = find_emulator_client_rect()
-        if rect != self.rect:
-            self.rect = rect
-            x, y, w, h = rect
-            self.root.geometry(f"{w}x{h}+{x}+{y}")
-            self.w, self.h = w, h
-            log(f"overlay repositioned: {w}x{h} @({x},{y})")
+        if rect is None or rect == self.rect:
+            return
+        self.rect = rect
+        x, y, w, h = rect
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+        self.w, self.h = w, h
+        log(f"overlay repositioned: {w}x{h} @({x},{y})")
 
     # ---------- loops ----------
 
@@ -165,6 +224,12 @@ class EspAuto:
         if self.stop:
             return
         try:
+            # The emulator re-raises its own window on fullscreen refresh and
+            # buries our one-shot -topmost; re-assert every cycle (this also
+            # keeps the status line visible, so the user never sees a dead
+            # overlay when the pipeline is actually alive).
+            keep_on_top(self.root)
+            keep_on_top(self.ctrl)
             if not self.device_online():
                 if self.pid is not None:
                     log("emulator offline — detaching")
@@ -195,18 +260,7 @@ class EspAuto:
             self.root.destroy()
             self.detach()
             return
-        if self.rpc is not None:
-            try:
-                frame = self.rpc.get_esp_frame(self.w, self.h)
-                self.rpc_fails = 0
-            except Exception as e:
-                self.rpc_fails += 1
-                if self.rpc_fails >= RPC_FAIL_LIMIT:
-                    log(f"rpc failed {self.rpc_fails}x — forcing re-attach")
-                    self.detach()
-                frame = {"ok": False, "error": f"rpc error ({e})"}
-        else:
-            frame = {"ok": False, "error": self.status}
+        frame = self.frame if self.rpc is not None else {"ok": False, "error": self.status}
         draw_frame(self.canvas, frame)
         self.root.after(POLL_MS, self.tick)
 
