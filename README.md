@@ -35,6 +35,7 @@
 | `frida_run.py` | 非交互式 Frida 脚本驱动器 |
 | `esp_loop.js` | 常驻 RPC 帧数据提供端（纯内存读取） |
 | `esp_overlay.py` | PC 端透明置顶叠加窗口（Windows，~30 Hz 刷新） |
+| `esp_auto.py` | 全自动守护脚本：监测模拟器 / frida-server / 游戏进程状态，自动启动绘制 |
 
 ## 使用方法
 
@@ -51,9 +52,16 @@ adb shell "su -c 'setsid /data/local/tmp/frida-server > /dev/null 2>&1 &'"
 
 # 3. 启动游戏并进入人机对局
 
-# 4. 启动叠加窗口（自动检测游戏进程；adb 不在 PATH 时设置 ADB 环境变量）
+# 4. 启动全自动守护脚本（推荐 —— 一条命令搞定）
+#    自动监测：模拟器在线状态 / frida-server 存活（掉线自动重启）/
+#    游戏进程（启动自动附加、退出自动分离、重启自动重连）/ 模拟器窗口移动
+python esp_auto.py
+
+#    或使用手动版本（单次附加，不自动恢复）
 python esp_overlay.py
 ```
+
+> adb 不在 PATH 时，先设置 `ADB` 环境变量指向模拟器自带的 adb.exe。
 
 黄色框 = 本地玩家，绿色框 = 队友，红色框 = 敌人，左侧竖条 = 血量。
 

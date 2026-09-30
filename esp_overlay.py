@@ -71,6 +71,35 @@ def make_click_through(root):
     user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style | WS_EX_LAYERED | WS_EX_TRANSPARENT)
 
 
+def draw_frame(canvas, frame):
+    """Render one esp_loop frame (or a status message when not ok) on the canvas."""
+    canvas.delete("all")
+    if not frame or not frame.get("ok"):
+        canvas.create_text(10, 10, anchor="nw", fill="orange",
+                           text=f"esp: {(frame or {}).get('error', 'no data')}")
+        return
+    lt = frame.get("localTeam", -1)
+    for p in frame.get("players", []):
+        if p["local"]:
+            color = "yellow"
+        elif p["team"] == lt:
+            color = "lime"
+        else:
+            color = "red"
+        bw = max(6, int((p["fy"] - p["hy"]) * 0.45))
+        x0, x1 = p["hx"] - bw // 2, p["hx"] + bw // 2
+        canvas.create_rectangle(x0, p["hy"], x1, p["fy"], outline=color, width=2)
+        # health bar on the left edge
+        frac = max(0.0, min(1.0, p["hp"] / 100.0))
+        bar_h = (p["fy"] - p["hy"]) * frac
+        canvas.create_rectangle(x0 - 6, p["fy"] - bar_h, x0 - 2, p["fy"], fill=color)
+        if p["spotted"]:
+            canvas.create_text(x0 - 8, p["hy"] - 8, anchor="e", fill="orange", text="*")
+        canvas.create_text(x0, p["fy"] + 4, anchor="nw", fill=color, text=f'{p["hp"]}')
+        if p["local"]:
+            canvas.create_oval(p["hx"] - 2, p["hy"] - 2, p["hx"] + 2, p["hy"] + 2, fill="yellow")
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -124,32 +153,7 @@ def main():
     threading.Thread(target=quit_on_enter, daemon=True).start()
 
     def draw(frame):
-        canvas.delete("all")
-        if not frame.get("ok"):
-            canvas.create_text(10, 10, anchor="nw", fill="orange",
-                               text=f"esp: {frame.get('error', '?')}")
-            return
-        lt = frame.get("localTeam", -1)
-        for p in frame.get("players", []):
-            if p["local"]:
-                color, fill = "yellow", ""
-            elif p["team"] == lt:
-                color, fill = "lime", ""
-            else:
-                color, fill = "red", "red"
-            bw = max(6, int((p["fy"] - p["hy"]) * 0.45))
-            x0, x1 = p["hx"] - bw // 2, p["hx"] + bw // 2
-            canvas.create_rectangle(x0, p["hy"], x1, p["fy"], outline=color, width=2)
-            # health bar on the left edge
-            frac = max(0.0, min(1.0, p["hp"] / 100.0))
-            bar_h = (p["fy"] - p["hy"]) * frac
-            canvas.create_rectangle(x0 - 6, p["fy"] - bar_h, x0 - 2, p["fy"], fill=color)
-            if p["spotted"]:
-                canvas.create_text(x0 - 8, p["hy"] - 8, anchor="e", fill="orange", text="*")
-            canvas.create_text(x0, p["fy"] + 4, anchor="nw", fill=color,
-                               text=f'{p["hp"]}')
-            if p["local"]:
-                canvas.create_oval(p["hx"] - 2, p["hy"] - 2, p["hx"] + 2, p["hy"] + 2, fill="yellow")
+        draw_frame(canvas, frame)
 
     def tick():
         if stop.is_set():

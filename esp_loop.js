@@ -19,15 +19,27 @@ const rdI32 = (p, off) => { try { return p.add(off).readS32(); } catch (e) { ret
 const rdF32 = (p, off) => { try { return p.add(off).readFloat(); } catch (e) { return null; } };
 
 function init() {
-  client = resolveModule(CONFIG.modules.client);
-  engine = resolveModule(CONFIG.modules.engine);
-  if (!client || !engine) throw new Error('libkm modules not resolved (Houdini maps)');
+  // Resolve into locals first — a partial resolution must not leave the module
+  // refs half-set (the game may still be loading its libs).
+  const c = resolveModule(CONFIG.modules.client);
+  const e = resolveModule(CONFIG.modules.engine);
+  if (!c || !e) throw new Error('libkm modules not resolved yet');
+  client = c;
+  engine = e;
   list = client.base.add(CONFIG.rva.client.s_EntityList);
   rendererGlobal = engine.base.add(CONFIG.rva.engine.g_EngineRenderer);
 }
 
 function getEspFrame(w, h) {
-  if (!client) init();                     // one-time; throws if not attachable
+  if (!client) {
+    try {
+      init();
+    } catch (e) {
+      // Game still loading (Houdini maps not up yet) — retry on the next poll,
+      // no exception: the supervisor would otherwise force a needless re-attach.
+      return { ok: false, players: [], localTeam: -1, error: 'modules loading: ' + e.message };
+    }
+  }
   const out = { ok: false, players: [], localTeam: -1, error: '' };
 
   const local = rdPtr(client.base.add(CONFIG.rva.client.s_pLocalPlayer));
