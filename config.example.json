@@ -1,0 +1,5 @@
+{
+  "python": "C:/path/to/python.exe",
+  "adb": "C:/path/to/LDPlayer/adb.exe",
+  "ldconsole": "C:/path/to/LDPlayer/ldconsole.exe"
+}

@@ -36,10 +36,25 @@
 | `esp_loop.js` | 常驻 RPC 帧数据提供端（纯内存读取） |
 | `esp_overlay.py` | PC 端透明置顶叠加窗口（Windows，~30 Hz 刷新） |
 | `esp_auto.py` | 全自动守护脚本：监测模拟器 / frida-server / 游戏进程状态，自动启动绘制 |
+| `start_esp.bat` | Windows 一键启动：自动拉起模拟器 → 等待开机 → 启动游戏 → 运行守护脚本 |
+| `config.example.json` | 一键脚本的本机路径配置模板（复制为 `config.json` 使用） |
 
 ## 使用方法
 
 环境要求：Windows + 已 root 的安卓模拟器（如 LDPlayer）+ Python 3 + Frida
+
+### 一键启动（推荐 · 懒人模式）
+
+1. 把 `config.example.json` 复制为 `config.json`，填入你自己机器上的路径：
+   - `python`：Python 解释器完整路径（需已 `pip install frida`）
+   - `adb`、`ldconsole`：模拟器安装目录下的对应工具路径
+   - 路径建议不含空格，分隔符用 `/`（JSON 里反斜杠需要转义，正斜杠最省事）
+2. 双击 `start_esp.bat`：自动完成「启动模拟器 → 等待安卓开机 → 启动游戏 → 运行 ESP 守护脚本」全流程，各阶段等待均有 3 分钟超时保护
+3. 退出：点击屏幕右上角红色 **「✕ ESP」** 悬浮按钮（或关闭脚本窗口 / 在控制台按 Enter）
+
+> `config.json` 已加入 `.gitignore`，仅存在于本机，不会被提交；没有 `config.json` 时，脚本退回使用系统 PATH 中的 `python` / `adb` / `ldconsole`。
+
+### 手动启动
 
 ```bash
 # 1. 安装依赖
