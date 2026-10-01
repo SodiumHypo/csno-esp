@@ -1,5 +1,6 @@
 # local machine config & runtime droppings
 config.json
+NEXT_SESSION_HANDOFF.md
 *.pid
 *.log
 
