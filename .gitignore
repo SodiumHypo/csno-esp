@@ -1,2 +1,14 @@
-__pycache__/
+# local machine config & runtime droppings
 config.json
+*.pid
+*.log
+
+# local-only artifacts — never commit
+__pycache__/
+_*.py
+_*.png
+_*.bat
+*.so
+*.dll
+frida-server*
+libs/
