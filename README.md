@@ -6,9 +6,7 @@
 > Frida 方案会在客户机内留下大量可见痕迹（frida-server 进程、注入的 agent 内存区、
 > `TracerPid`、27042 端口等），**不是长期隐蔽方案**，也请勿在此假设之外使用。
 > 下一阶段的正式方向是**宿主侧（Windows 读取 dnplayer 进程内存）**零客户机组件的
-> 读取方案，见 [`docs/phase4-hostmem.md`](docs/phase4-hostmem.md)。
-
-📚 全部技术文档（架构 / 三阶段验证记录 / 偏移权威表 / 迁移指南）：[`docs/`](docs/README.md)
+> 读取方案。
 
 ## 项目简介
 
@@ -46,7 +44,6 @@
 | `esp_auto.py` | 全自动守护脚本：监测模拟器 / frida-server / 游戏进程状态，自动启动绘制 |
 | `start_esp.bat` | Windows 一键启动：自动拉起模拟器 → 等待开机 → 启动游戏 → 运行守护脚本 |
 | `config.example.json` | 一键脚本的本机路径配置模板（复制为 `config.json` 使用） |
-| `docs/` | 技术文档：架构、Phase 1–3 完整验证记录、Phase 4 规划、偏移权威表（英文） |
 
 ## 使用方法
 
